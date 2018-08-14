@@ -6,6 +6,11 @@ using UnityEngine.UI;
 using PlayFab;
 using PlayFab.ClientModels;
 using DeltaDNA;
+//using GooglePlayGames;
+//using GooglePlayGames.BasicApi;
+//https://api.playfab.com/docs/tutorials/landing-players/sign-in-with-google 
+// https://github.com/playgameservices/play-games-plugin-for-unity
+//https://developers.google.com/games/services/console/enabling
 
 public class SdkManager : MonoBehaviour {
 
@@ -25,11 +30,33 @@ public class SdkManager : MonoBehaviour {
         // Log the player in to PlayFab
         if (SystemInfo.deviceType != DeviceType.Handheld)
         {
-            var request = new LoginWithCustomIDRequest { CustomId = "GettingStartedGuide", CreateAccount = true };
+            var request = new LoginWithCustomIDRequest { CustomId = "DDNA Tutorial Playfab", CreateAccount = true };
             PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
         }
-        // TODO - Add furher login methods for iOS / Android etc .. 
-
+        else if (SystemInfo.deviceType == DeviceType.Handheld)
+        {
+            if (Application.platform == RuntimePlatform.Android)
+            {
+                PlayFabClientAPI.LoginWithAndroidDeviceID( new LoginWithAndroidDeviceIDRequest()  {
+                    CreateAccount = true,
+                    AndroidDeviceId = SystemInfo.deviceUniqueIdentifier,
+                    TitleId = PlayFabSettings.TitleId,
+                    AndroidDevice = SystemInfo.deviceModel,
+                    OS = SystemInfo.operatingSystem
+                }, OnLoginSuccess , OnLoginFailure);
+            }
+            else if (Application.platform == RuntimePlatform.IPhonePlayer)
+            {
+                PlayFabClientAPI.LoginWithIOSDeviceID(new LoginWithIOSDeviceIDRequest()
+                {
+                    CreateAccount = true,
+                    DeviceId = SystemInfo.deviceUniqueIdentifier,
+                    TitleId = PlayFabSettings.TitleId,
+                    DeviceModel = SystemInfo.deviceModel,
+                    OS = SystemInfo.operatingSystem
+                }, OnLoginSuccess, OnLoginFailure);
+            }
+        }       
     }
 
 
