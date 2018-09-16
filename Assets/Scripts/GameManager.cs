@@ -7,15 +7,16 @@ using PlayFab;
 
 public class GameManager : MonoBehaviour {
 
-    
+  /*  
     public Text textPlayerLevel;
     public Text textPlayerHealth;
     public Text textPlayerCoins;
-
+*/
     private void Start()
     {
         
     }
+
 
 
 }

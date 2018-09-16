@@ -15,7 +15,7 @@ public class GameConsole : MonoBehaviour {
     public bool isConsoleVisible = false; 
 
     // UI Debug console will be used to let player see what the game and SDKs are doing.
-    public int numConsoleLines = 16;
+    public int numConsoleLines = 12;
     private List<string> console = new List<string>();
 
 
