@@ -11,7 +11,8 @@ public class Snake : MonoBehaviour {
     public float velocity   = 0.2f;
     public int length       = 5;
     public float bodySectionLength = 1f;
-
+    //bool vertical = false;
+   // bool horizontal = true;
     public Vector3          head;    
     public List<Vector3>    snakeSections;
     
@@ -40,8 +41,10 @@ public class Snake : MonoBehaviour {
 
     }
 	
+
 	// Update is called once per frame
 	void Update () {
+
       
         Quaternion Rotation = Quaternion.Euler(0,  0, direction);
         Vector3 headDirection = Rotation * Vector3.up ;

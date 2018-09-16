@@ -27,7 +27,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &114198316230018014
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -46,14 +46,14 @@ MonoBehaviour:
   velocity: 1
   length: 6
   bodySectionLength: 0.3
-  head: {x: -0.7367948, y: 1, z: 0}
+  head: {x: 0, y: 1, z: 0}
   snakeSections:
-  - {x: -2.91, y: 1, z: 0}
-  - {x: 0.13130099, y: 1.3111032, z: -0.08034326}
-  - {x: -0.32345137, y: 0.92135453, z: 0.35537824}
-  - {x: 0.1527287, y: 0.670048, z: -0.37275097}
-  - {x: -0.07389739, y: 0.3629916, z: 0.41736978}
-  - {x: 0.029926619, y: 0.06505817, z: -0.41960084}
+  - {x: 0, y: 1, z: 0}
+  - {x: 0, y: 0.7, z: 0}
+  - {x: 0, y: 0.4, z: 0}
+  - {x: 0, y: 0.1, z: 0}
+  - {x: 0, y: -0.2, z: 0}
+  - {x: 0, y: -0.5, z: 0}
 --- !u!120 &120965385983004780
 LineRenderer:
   m_ObjectHideFlags: 1
@@ -90,12 +90,12 @@ LineRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Positions:
-  - {x: -0.7367948, y: 1, z: 0}
-  - {x: 0.13130099, y: 1.3111032, z: -0.08034326}
-  - {x: -0.32345137, y: 0.92135453, z: 0.35537824}
-  - {x: 0.1527287, y: 0.670048, z: -0.37275097}
-  - {x: -0.07389739, y: 0.3629916, z: 0.41736978}
-  - {x: 0.029926619, y: 0.06505817, z: -0.41960084}
+  - {x: 0, y: 1, z: 0}
+  - {x: 0, y: 0.7, z: 0}
+  - {x: 0, y: 0.4, z: 0}
+  - {x: 0, y: 0.1, z: 0}
+  - {x: 0, y: -0.2, z: 0}
+  - {x: 0, y: -0.5, z: 0}
   m_Parameters:
     serializedVersion: 2
     widthMultiplier: 0.1
