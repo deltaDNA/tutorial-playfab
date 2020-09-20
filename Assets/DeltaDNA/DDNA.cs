@@ -29,12 +29,15 @@ namespace DeltaDNA {
     /// </summary>
     public class DDNA : Singleton<DDNA> {
 
-        private const string PF_KEY_USER_ID = "DDSDK_USER_ID";
+        internal const string PF_KEY_USER_ID = "DDSDK_USER_ID";
         internal const string PF_KEY_FIRST_SESSION = "DDSDK_FIRST_SESSION";
         internal const string PF_KEY_LAST_SESSION = "DDSDK_LAST_SESSION";
-        internal const string PF_KEY_FORGET_ME = "DDSDK_FORGET_ME";
-        internal const string PF_KEY_FORGOTTEN = "DDSK_FORGOTTEN";
+        internal const string PF_KEY_CROSS_GAME_USER_ID = "DDSDK_CROSS_GAME_USER_ID";
         internal const string PF_KEY_ADVERTISING_ID = "DDSDK_ADVERTISING_ID";
+        internal const string PF_KEY_FORGET_ME = "DDSDK_FORGET_ME";
+        internal const string PF_KEY_STOP_TRACKING_ME = "DDSKD_STOP_TRACKING_ME";
+        internal const string PF_KEY_FORGOTTEN = "DDSK_FORGOTTEN";
+        internal const string PF_KEY_ACTIONS_SALT = "DDSDK_ACTIONS_SALT";
 
         private static object _lock = new object();
 
@@ -79,19 +82,23 @@ namespace DeltaDNA {
             #endif
         }
 
-        void Awake() {
+        internal void Awake() {
             lock (_lock) {
                 if (PlayerPrefs.HasKey(PF_KEY_FORGET_ME)
-                    || PlayerPrefs.HasKey(PF_KEY_FORGOTTEN)) {
+                    || PlayerPrefs.HasKey(PF_KEY_FORGOTTEN)
+                    || PlayerPrefs.HasKey(PF_KEY_STOP_TRACKING_ME)
+                    ) {
                     delegated = new DDNANonTracking(this);
                 } else {
                     delegated = new DDNAImpl(this);
                 }
 
                 // attach additional behaviours as children of this gameObject
+                #if !DDNA_IOS_PUSH_NOTIFICATIONS_REMOVED
                 GameObject iosNotificationsObject = new GameObject();
                 IosNotifications = iosNotificationsObject.AddComponent<IosNotifications>();
                 iosNotificationsObject.transform.parent = gameObject.transform;
+                #endif
 
                 GameObject androidNotificationsObject = new GameObject();
                 AndroidNotifications = androidNotificationsObject.AddComponent<AndroidNotifications>();
@@ -190,19 +197,24 @@ namespace DeltaDNA {
                     ClientVersion = config.clientVersion;
                 }
 
-                if (newPlayer && delegated is DDNANonTracking) {
+                if (newPlayer) {
                     PlayerPrefs.DeleteKey(PF_KEY_FIRST_SESSION);
                     PlayerPrefs.DeleteKey(PF_KEY_LAST_SESSION);
-                    PlayerPrefs.DeleteKey(PF_KEY_FORGET_ME);
-                    PlayerPrefs.DeleteKey(PF_KEY_FORGOTTEN);
+                    PlayerPrefs.DeleteKey(PF_KEY_CROSS_GAME_USER_ID);
 
-                    delegated = new DDNAImpl(this);
+                    if (delegated is DDNANonTracking) {
+                        PlayerPrefs.DeleteKey(PF_KEY_FORGET_ME);
+                        PlayerPrefs.DeleteKey(PF_KEY_FORGOTTEN);
+                        PlayerPrefs.DeleteKey(PF_KEY_STOP_TRACKING_ME);
+
+                        delegated = new DDNAImpl(this);
+                    }
                 }
 
                 delegated.StartSDK(newPlayer);
             }
         }
-        
+
         /// <summary>
         /// Starts the SDK.  Call before sending events or making engagements.  The SDK will
         /// generate a new user id if this is the first run.
@@ -371,9 +383,12 @@ namespace DeltaDNA {
             PlayerPrefs.DeleteKey(PF_KEY_USER_ID);
             PlayerPrefs.DeleteKey(PF_KEY_FIRST_SESSION);
             PlayerPrefs.DeleteKey(PF_KEY_LAST_SESSION);
+            PlayerPrefs.DeleteKey(PF_KEY_CROSS_GAME_USER_ID);
+            PlayerPrefs.DeleteKey(PF_KEY_ADVERTISING_ID);
             PlayerPrefs.DeleteKey(PF_KEY_FORGET_ME);
             PlayerPrefs.DeleteKey(PF_KEY_FORGOTTEN);
-            PlayerPrefs.DeleteKey(PF_KEY_ADVERTISING_ID);
+            PlayerPrefs.DeleteKey(PF_KEY_STOP_TRACKING_ME);
+            PlayerPrefs.DeleteKey(PF_KEY_ACTIONS_SALT);
 
             delegated.ClearPersistentData();
 
@@ -402,6 +417,19 @@ namespace DeltaDNA {
                     delegated = new DDNANonTracking(this);
                     if (started) delegated.StartSDK(false);
                     delegated.ForgetMe();
+                }
+            }
+        }
+        
+        public void StopTrackingMe() {
+            lock (_lock) {
+                if (!PlayerPrefs.HasKey(PF_KEY_STOP_TRACKING_ME)) {
+                    var started = HasStarted;
+                    delegated.StopTrackingMe();
+
+                    delegated = new DDNANonTracking(this);
+                    if (started) delegated.StartSDK(false);
+                    delegated.StopTrackingMe();
                 }
             }
         }
@@ -445,10 +473,12 @@ namespace DeltaDNA {
         /// </summary>
         public AndroidNotifications AndroidNotifications { get; private set; }
 
+        #if !DDNA_IOS_PUSH_NOTIFICATIONS_REMOVED
         /// <summary>
         /// Helper for iOS push notifications.
         /// </summary>
         public IosNotifications IosNotifications { get; private set; }
+        #endif
 
         /// <summary>
         /// The EngageFactory helps with using the Engage service.
@@ -538,6 +568,15 @@ namespace DeltaDNA {
         /// this value, make sure to set it before calling <see cref="Start"/>.
         /// </summary>
         public string Platform { get; set; }
+
+        /// <summary>
+        /// The cross game user ID to be used for cross promotion. May be <code>null</code>
+        /// or empty if not set.
+        /// </summary>
+        public string CrossGameUserID {
+            get { return delegated.CrossGameUserID; }
+            set { delegated.CrossGameUserID = value; }
+        }
 
         /// <summary>
         /// The Android registration ID that is associated with this device if it's running

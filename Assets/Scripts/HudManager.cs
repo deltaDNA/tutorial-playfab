@@ -8,7 +8,7 @@ public class HudManager : MonoBehaviour {
     public Text txtHealth;
     public Text txtCoins;
     public Text txtLevel;
-    public Text txtDifficulty;
+    public Text txtFoodRemaining;
 
     public void Start()
     {
@@ -16,7 +16,7 @@ public class HudManager : MonoBehaviour {
         this.txtHealth.text ="";
         this.txtCoins.text = "";
         this.txtLevel.text = "";
-        this.txtDifficulty.text = "";
+        this.txtFoodRemaining.text = "";
     }
 
     public void SetHealth(int health)
@@ -31,8 +31,8 @@ public class HudManager : MonoBehaviour {
     {
         this.txtLevel.text = level.ToString();
     }
-    public void SetDifficulty(int difficulty)
+    public void SetFoodRemaining(int foodRemaining)
     {
-        this.txtDifficulty.text = difficulty.ToString();
+        this.txtFoodRemaining.text = foodRemaining.ToString();
     }
 }

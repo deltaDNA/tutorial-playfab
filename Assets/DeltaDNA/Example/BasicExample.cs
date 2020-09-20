@@ -37,6 +37,7 @@ public class BasicExample : MonoBehaviour {
         DDNA.Instance.SetLoggingLevel(Logger.Level.DEBUG);
 
         // Enable push notifications
+        #if !DDNA_IOS_PUSH_NOTIFICATIONS_REMOVED
         DDNA.Instance.IosNotifications.OnDidRegisterForPushNotifications += (string n) => {
             Debug.Log("Got an iOS push token: " + n);
         };
@@ -47,6 +48,7 @@ public class BasicExample : MonoBehaviour {
             Debug.Log("Launched with an iOS push notification: " + n);
         };
         DDNA.Instance.IosNotifications.RegisterForPushNotifications();
+        #endif
 
         DDNA.Instance.AndroidNotifications.OnDidRegisterForPushNotifications += (string n) => {
             Debug.Log("Got an Android registration token: " + n);
@@ -62,6 +64,17 @@ public class BasicExample : MonoBehaviour {
         };
         DDNA.Instance.AndroidNotifications.RegisterForPushNotifications();
 
+        //Register default handlers for event triggered campaigns. These will be candidates for handling ANY Event-Triggered Campaigns. 
+        //Any handlers added to RecordEvent() calls with the .Add method will be evaluated before these default handlers. 
+        DDNA.Instance.Settings.DefaultImageMessageHandler =
+            new ImageMessageHandler(DDNA.Instance, imageMessage =>{
+                // the image message is already prepared so it will show instantly
+                imageMessage.Show();
+            });
+        DDNA.Instance.Settings.DefaultGameParameterHandler = new GameParametersHandler(gameParameters =>{
+            // do something with the game parameters
+            Logger.LogInfo("Received game parameters from event trigger: " + gameParameters);
+        });
         // Start the SDK. We recommend using the configuration UI for setting your game's
         // keys and calling StartSDK() or StartSDK(userID) instead.
         DDNA.Instance.StartSDK(new Configuration() {
@@ -103,14 +116,6 @@ public class BasicExample : MonoBehaviour {
 
         DDNA.Instance
                 .RecordEvent(gameEvent)
-                .Add(new GameParametersHandler(gameParameters => {
-                    // do something with the game parameters
-                    Logger.LogInfo("Received game parameters from event trigger: " + gameParameters);
-                }))
-                .Add(new ImageMessageHandler(DDNA.Instance, imageMessage => {
-                    // the image message is already prepared so it will show instantly
-                    imageMessage.Show();
-                }))
                 .Run();
     }
 
@@ -135,7 +140,7 @@ public class BasicExample : MonoBehaviour {
             .AddParam("userLevel", 4)
             .AddParam("experience", 1000)
             .AddParam("missionName", "Disco Volante");
-            
+
         DDNA.Instance.EngageFactory.RequestGameParameters("gameLoaded", customParams, (gameParameters) => {
             popUpContent.text = MiniJSON.Json.Serialize(gameParameters);
         });
@@ -149,7 +154,7 @@ public class BasicExample : MonoBehaviour {
             .AddParam("userLevel", 4)
             .AddParam("experience", 1000)
             .AddParam("missionName", "Disco Volante");
-            
+
         DDNA.Instance.EngageFactory.RequestImageMessage("testImageMessage", customParams, (imageMessage) => {
 
             // Check we got an engagement with a valid image message.

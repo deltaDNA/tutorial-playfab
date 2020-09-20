@@ -102,19 +102,26 @@ namespace DeltaDNA {
 
             if (IsUploading) return;
 
-            string gameEvent;
+            var advertisingId = PlayerPrefs.GetString(DDNA.PF_KEY_ADVERTISING_ID);
+            var dictionary = new Dictionary<string, object>() {
+                    { "eventName", "ddnaForgetMe" },
+                    { "eventTimestamp", GetCurrentTimestamp() },
+                    { "eventUUID", Guid.NewGuid().ToString() },
+                    { "sessionID", SessionID },
+                    { "userID", UserID },
+                    { "eventParams", new Dictionary<string, object>() {
+                        { "platform", Platform },
+                        { "sdkVersion", Settings.SDK_VERSION },
+                        { "ddnaAdvertisingId", advertisingId }
+                    }}};
+            if (string.IsNullOrEmpty(advertisingId)) {
+                (dictionary["eventParams"] as Dictionary<string, object>)
+                    .Remove("ddnaAdvertisingId");
+            }
+
+            string json;
             try {
-                gameEvent = MiniJSON.Json.Serialize(
-                    new GameEvent("ddnaForgetMe")
-                        .AddParam("eventTimestamp", GetCurrentTimestamp())
-                        .AddParam("eventUUID", Guid.NewGuid().ToString())
-                        .AddParam("sessionID", SessionID)
-                        .AddParam("userID", UserID)
-                        .AddParam("eventParams", new Params()
-                            .AddParam("platform", Platform)
-                            .AddParam("sdkVersion", Settings.SDK_VERSION))
-                            .AddParam("ddnaAdvertisingId", PlayerPrefs.GetString(DDNA.PF_KEY_ADVERTISING_ID))
-                        .AsDictionary());
+                json = MiniJSON.Json.Serialize(dictionary);
             } catch (Exception e) {
                 Logger.LogWarning("Unable to generate JSON for 'ddnaForgetMe' event. " + e.Message);
                 return;
@@ -122,19 +129,19 @@ namespace DeltaDNA {
 
             var url = (HashSecret != null)
                 ? DDNA.FormatURI(
-                    Settings.COLLECT_HASH_URL_PATTERN,
+                    Settings.COLLECT_HASH_URL_PATTERN.Replace("/bulk", ""),
                     CollectURL,
                     EnvironmentKey,
-                    DDNA.GenerateHash(gameEvent, HashSecret))
+                    DDNA.GenerateHash(json, HashSecret))
                 : DDNA.FormatURI(
-                    Settings.COLLECT_URL_PATTERN,
+                    Settings.COLLECT_URL_PATTERN.Replace("/bulk", ""),
                     CollectURL,
                     EnvironmentKey,
                     null);
 
             HttpRequest request = new HttpRequest(url) {
                 HTTPMethod = HttpRequest.HTTPMethodType.POST,
-                HTTPBody = gameEvent
+                HTTPBody = json
             };
             request.setHeader("Content-Type", "application/json");
 
@@ -146,6 +153,21 @@ namespace DeltaDNA {
                 }));
         }
 
+        internal override void StopTrackingMe()
+        {
+            if (PlayerPrefs.HasKey(DDNA.PF_KEY_FORGOTTEN)) {
+                Logger.LogDebug("Already forgotten user " + UserID);
+                return;
+            }
+            if (PlayerPrefs.HasKey(DDNA.PF_KEY_STOP_TRACKING_ME)) {
+                Logger.LogDebug("Already stopped tracking user " + UserID);
+                return;
+            }
+            
+            Logger.LogDebug(" Stopped Tracking " + UserID);
+            PlayerPrefs.SetInt(DDNA.PF_KEY_STOP_TRACKING_ME, 1);
+        }
+
         #endregion
         #region Properties
 
@@ -155,6 +177,7 @@ namespace DeltaDNA {
         #endregion
         #region Client Configuration
 
+        override internal string CrossGameUserID { get; set; }
         override internal string PushNotificationToken { get; set; }
         override internal string AndroidRegistrationID { get; set; }
 

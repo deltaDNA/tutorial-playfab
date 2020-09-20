@@ -18,12 +18,13 @@ namespace DeltaDNA
 {
     public class Settings
     {
-        internal static readonly string SDK_VERSION = "Unity SDK v4.11.1";
+        internal static readonly string SDK_VERSION = "Unity SDK v4.13.4";
 
         internal static readonly string ENGAGE_API_VERSION = "4";
 
         internal static readonly string EVENT_STORAGE_PATH = "{persistent_path}/ddsdk/events/";
         internal static readonly string ENGAGE_STORAGE_PATH = "{persistent_path}/ddsdk/engage/";
+        internal static readonly string ACTIONS_STORAGE_PATH = "{persistent_path}/ddsdk/actions/";
         internal static readonly string LEGACY_SETTINGS_STORAGE_PATH = "{persistent_path}/GASettings.ini";
         internal static readonly string EVENT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss.fff";
         internal static readonly string USERID_URL_PATTERN = "{host}/uuid";
@@ -56,6 +57,9 @@ namespace DeltaDNA
             BackgroundEventUpload = true;   // send events automatically by default
             BackgroundEventUploadStartDelaySeconds = 0;
             BackgroundEventUploadRepeatRateSeconds = 60;
+            HttpRequestConfigurationTimeoutSeconds = 30;
+            HttpRequestConfigurationMaxRetries = 5;
+            HttpRequestConfigurationRetryBackoffFactorSeconds = 5;
 
             #if UNITY_WEBPLAYER || UNITY_WEBGL
             UseEventStore = false;
@@ -65,6 +69,10 @@ namespace DeltaDNA
 
             SessionTimeoutSeconds = 5 * 60;
             EngageCacheExpirySeconds = 12 * 60 * 60;
+            ImageCacheLimitMB = 50;
+            MaxConcurrentImageCacheFetches = 3;
+            MultipleActionsForEventTriggerEnabled = false;
+            MultipleActionsForImageMessagesEnabled = false;
         }
 
         /// <summary>
@@ -153,6 +161,20 @@ namespace DeltaDNA
         /// response is invalidated. A value of 0 disables the cache.
         /// </summary>
         public int EngageCacheExpirySeconds { get; set; }
+        
+        /// <summary>
+        /// Specifies the size, in MB, of the Image Message Cache.
+        /// This is not an exact limit, but once this limit has been exceeded,
+        /// no more caching will be attempted. 
+        /// </summary>
+        public int ImageCacheLimitMB { get; set; }
+        
+        /// <summary>
+        /// Specifies the maximum number of concurrent images to fetch when populating the cache.
+        /// High values of this, combined with a lot of large image messages on the environment might lead to instability.
+        /// Low values of this might lead to delays in showing image messages very early on in the game. 
+        /// </summary>
+        public int MaxConcurrentImageCacheFetches { get; set; }
 
         /// <summary>
         /// Controls user consent for advertiser tracking.
@@ -162,10 +184,28 @@ namespace DeltaDNA
         public bool AdvertiserGdprUserConsent { get; set; }
 
         /// <summary>
-        /// Controls whether the current user should be age resitected (under 16).
+        /// Controls whether the current user should be age restricted (under 16).
         /// 
-        /// Changes to this valie will be applied on the next session.
+        /// Changes to this value will be applied on the next session.
         /// </summary>
         public bool AdvertiserGdprAgeRestrictedUser { get; set; }
+        
+        /// <summary>
+	    ///Controls whether multiple Event-Triggers can call the callback sequentially.
+	    /// 
+        /// </summary>
+        public bool MultipleActionsForEventTriggerEnabled { get; set; }
+        
+        /// <summary>
+        /// Controls whether multiple actions for Image Message is enabled.
+        /// </summary>
+        public bool MultipleActionsForImageMessagesEnabled { get; set; }
+        
+        public GameParametersHandler DefaultGameParameterHandler { get; set; }
+        
+        public ImageMessageHandler DefaultImageMessageHandler { get; set;  }
+        public int HttpRequestConfigurationTimeoutSeconds { get; set; }
+        public int HttpRequestConfigurationMaxRetries { get; set; }
+        public int HttpRequestConfigurationRetryBackoffFactorSeconds { get; set; }
     }
 }

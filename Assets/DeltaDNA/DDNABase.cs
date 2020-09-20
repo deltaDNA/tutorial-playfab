@@ -69,7 +69,7 @@ namespace DeltaDNA {
 
         internal abstract void ClearPersistentData();
         internal abstract void ForgetMe();
-
+        internal abstract void StopTrackingMe();
         internal ImageMessageStore ImageMessageStore { get; set; }
         internal EngageFactory EngageFactory { get; set; }
 
@@ -93,6 +93,7 @@ namespace DeltaDNA {
         #endregion
         #region Client Configuration
 
+        internal abstract string CrossGameUserID { get; set; }
         internal abstract string AndroidRegistrationID { get; set; }
         internal abstract string PushNotificationToken { get; set; }
 
@@ -116,7 +117,7 @@ namespace DeltaDNA {
         }
 
         protected void NewSession() {
-            ddna.NewSession();
+          ddna.NewSession();
         }
 
         internal void UseCollectTimestamp(bool useCollect) {

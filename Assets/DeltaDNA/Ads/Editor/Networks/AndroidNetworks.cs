@@ -36,7 +36,7 @@ namespace DeltaDNA.Ads.Editor {
         private static readonly string[] REPOS = {
             "https://deltadna.bintray.com/android"
         };
-        private const string VERSION = "1.10.0";
+        private const string VERSION = "1.11.0";
         private const string PLUGINS_PATH = "Assets/Plugins/Android";
         
         public AndroidNetworks() : base("android", "Android") {}

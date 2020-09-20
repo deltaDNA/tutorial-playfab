@@ -6,23 +6,24 @@ using PlayFab.ClientModels;
 using PlayFab.Json;
 using DeltaDNA;
 
-public class PlayerManager : MonoBehaviour {
+public class PlayerManager : MonoBehaviour
+{
 
     // Health, Level & Coins are set in PlayFab
-    public int playerLevel = 0 ;
-    public int playerHealth = 0 ;
-    public int playerCoins = 0 ;
+    public int playerLevel = 1;
+    public int playerHealth = 100;
+    public int playerCoins = 100;
 
-    // Assigned to player from deltaDNA AB Test 
-    // initiated from PlayFab with CLoud Script
-    public int difficulty = 100; 
-
+    public int foodRemaining = 0;
     public HudManager hud;
-    public GameObject snake;
 
-	// Use this for initialization
-	void Start () {
-        
+    public enum State { DEAD, ALIVE };
+    public State state = State.DEAD;
+
+    // Use this for initialization
+    void Start()
+    {
+
         GetPlayerInventory();   // Contains Virtual Currency Balance
         GetPlayerStatistics();  // Contains Numeric Stats (playerLevel, playerHealth..)
 
@@ -44,17 +45,18 @@ public class PlayerManager : MonoBehaviour {
     public void LevelUp()
     {
         playerLevel++;
-        
+
         Debug.Log("Level Up - playerLevel " + playerLevel);
 
         // Record a deltaDNA Analytics Event
         GameEvent levelup = new GameEvent("levelUp")
             .AddParam("levelUpName", "Level " + playerLevel)
             .AddParam("userLevel", playerLevel)
-            .AddParam("difficulty",difficulty);
+            .AddParam("foodRemaining", foodRemaining);
 
         DDNA.Instance.RecordEvent(levelup)
-            .Add(new GameParametersHandler (gameParameters => {
+            .Add(new GameParametersHandler(gameParameters =>
+            {
                 Debug.Log("Event Triggered Campaign Hit");
                 UpdatePlayerParameters(gameParameters);
             }))
@@ -69,7 +71,8 @@ public class PlayerManager : MonoBehaviour {
     {
         // Get User Inventory from PlayFab on launch
         PlayFabClientAPI.GetUserInventory(new GetUserInventoryRequest(),
-            result => {
+            result =>
+            {
                 if (result.VirtualCurrency != null && result.VirtualCurrency.ContainsKey("GC"))
                 {
                     playerCoins = result.VirtualCurrency["GC"];
@@ -77,7 +80,8 @@ public class PlayerManager : MonoBehaviour {
                     hud.SetCoins(playerCoins);
                 }
             },
-            error => {
+            error =>
+            {
                 Debug.Log("Got error getting UserInventory:");
                 Debug.Log(error.GenerateErrorReport());
             }
@@ -109,8 +113,8 @@ public class PlayerManager : MonoBehaviour {
                                 hud.SetHealth(playerHealth);
                                 break;
                             case "difficulty":
-                                difficulty = eachStat.Value;
-                                hud.SetDifficulty(difficulty);
+                                foodRemaining = eachStat.Value;
+                                hud.SetFoodRemaining(foodRemaining);
                                 break;
                             default:
                                 break;
@@ -118,7 +122,8 @@ public class PlayerManager : MonoBehaviour {
                     }
                 }
             },
-            error => {
+            error =>
+            {
                 Debug.Log("Got error getting Player Statistics:");
                 Debug.Log(error.GenerateErrorReport());
             }
@@ -127,40 +132,42 @@ public class PlayerManager : MonoBehaviour {
 
 
 
-    private void UpdatePlayerStatistics()
-    { 
+    public void UpdatePlayerStatistics()
+    {
         // Update PlayFab Statistics
         PlayFabClientAPI.UpdatePlayerStatistics(new UpdatePlayerStatisticsRequest
         {
             Statistics = new List<StatisticUpdate> {
                 new StatisticUpdate { StatisticName = "playerLevel", Value = playerLevel },
                 new StatisticUpdate { StatisticName = "playerHealth", Value = playerHealth },
-                new StatisticUpdate { StatisticName = "difficulty", Value = difficulty },
+                new StatisticUpdate { StatisticName = "foodRemaining", Value = foodRemaining },
             }
-        },       
-        result => {
+        },
+        result =>
+        {
             Debug.Log("Updated Player Statistics on PlayFab");
         },
-        error => {
+        error =>
+        {
             Debug.Log("Got error updating Player Statistics:");
             Debug.Log(error.GenerateErrorReport());
-         });
+        });
 
         hud.SetCoins(playerCoins);
         hud.SetHealth(playerHealth);
         hud.SetLevel(playerLevel);
-        hud.SetDifficulty(difficulty);
+        hud.SetFoodRemaining(foodRemaining);
     }
 
-    private void UpdatePlayerParameters(Dictionary<string,object> gameParameters)
+    private void UpdatePlayerParameters(Dictionary<string, object> gameParameters)
     {
         // React to any Player parameter modificaitons coming from deltaDNA
         Debug.Log("Received game parameters modifications from DDNA: " + DeltaDNA.MiniJSON.Json.Serialize(gameParameters));
         bool modified = false;
-        if(gameParameters.ContainsKey("difficulty"))
+        if (gameParameters.ContainsKey("foodRemaining"))
         {
-            difficulty = System.Convert.ToInt32(gameParameters["difficulty"]);
-            modified = true; 
+            foodRemaining = System.Convert.ToInt32(gameParameters["foodRemaining"]);
+            modified = true;
         }
 
         if (modified)
@@ -170,7 +177,62 @@ public class PlayerManager : MonoBehaviour {
 
 
     }
-    
 
-    
+    public void SetLevel(int l)
+    {/*
+        chilliConnect.Economy.SetCurrencyBalance(new SetCurrencyBalanceRequestDesc("USERLEVEL", l)
+            , (request, response) => Debug.Log("Set UserLevel " + l)
+            , (request, error) => Debug.LogError(error.ErrorDescription)
+        );
+        */
+        playerLevel = l;
+        UpdatePlayerStatistics();
+    }
+
+    public void SetHealth(int h)
+    {
+        // TODO Save to cloud
+        playerHealth = h;
+        UpdatePlayerStatistics();
+
+    }
+
+    public void SpendCoins(int c)
+    {
+        SetCoins(playerCoins - c);
+    }
+
+    public void AddCoins(int c)
+    {
+        SetCoins(playerCoins + c);
+    }
+
+    private void SetCoins(int c)
+    {/*
+        chilliConnect.Economy.SetCurrencyBalance(new SetCurrencyBalanceRequestDesc("COINS", c)
+            , (request, response) => Debug.Log("Set UserCoins " + c)
+            , (request, error) => Debug.LogError(error.ErrorDescription)
+        );*/
+        playerCoins = c;
+        UpdatePlayerStatistics();
+
+    }
+
+    public void SetFoodRemaining(int f)
+    {
+        foodRemaining = f;
+        UpdatePlayerStatistics();
+    }
+
+
+    public void Kill()
+    {
+        this.state = State.DEAD;
+    }
+    public void NewPlayer()
+    {
+        this.state = State.ALIVE;
+
+
+    }
 }

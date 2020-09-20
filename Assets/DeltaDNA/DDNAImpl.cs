@@ -30,6 +30,8 @@ namespace DeltaDNA {
 
         private readonly EventStore eventStore = null;
         private readonly EngageCache engageCache = null;
+        private readonly ActionStore actionStore = null;
+        private readonly ExecutionCountManager executionCountManager = null;
 
         private bool started = false;
         private bool uploading = false;
@@ -49,10 +51,15 @@ namespace DeltaDNA {
         private ReadOnlyCollection<string> cacheImages =
             new ReadOnlyCollection<string>(new List<string>());
 
+        private bool hasSentDefaultEvents = false;
+        private bool newPlayer;
+        private int retryAttempts = 0; 
+
         internal DDNAImpl(DDNA ddna) : base(ddna) {
             string eventStorePath = null;
             if (Settings.UseEventStore) {
-                eventStorePath = Settings.EVENT_STORAGE_PATH.Replace("{persistent_path}", Application.persistentDataPath);
+                eventStorePath = Settings.EVENT_STORAGE_PATH
+                    .Replace("{persistent_path}", Application.persistentDataPath);
                 if (!Utils.IsDirectoryWritable(eventStorePath)) {
                     Logger.LogWarning("Event store path unwritable, event caching disabled.");
                     Settings.UseEventStore = false;
@@ -67,7 +74,10 @@ namespace DeltaDNA {
                 eventStore = new EventStore(eventStorePath);
             }
             engageCache = new EngageCache(Settings);
+            actionStore = new ActionStore(Settings.ACTIONS_STORAGE_PATH
+                .Replace("{persistent_path}", Application.persistentDataPath));
             ImageMessageStore = new ImageMessageStore(ddna);
+            executionCountManager = new ExecutionCountManager();
 
             #if DDNA_SMARTADS
             // initialise SmartAds so it can register for events
@@ -100,6 +110,7 @@ namespace DeltaDNA {
                 var backgroundSeconds = (DateTime.UtcNow - lastActive).TotalSeconds;
                 if (backgroundSeconds > Settings.SessionTimeoutSeconds) {
                     lastActive = DateTime.MinValue;
+                    retryAttempts = 0; 
                     NewSession();
                 }
             }
@@ -115,19 +126,20 @@ namespace DeltaDNA {
         #endregion
         #region Client Interface
 
-        override internal void StartSDK(bool newPlayer) {
+        override internal void StartSDK(bool newPlayer){
             started = true;
-            NewSession();
-
-            if (launchNotificationEvent != null) {
-                RecordEvent(launchNotificationEvent);
-                launchNotificationEvent = null;
+            this.newPlayer = newPlayer;
+            if (newPlayer) {
+                engageCache.Clear();
+                actionStore.Clear();
+                hasSentDefaultEvents = false;
             }
 
-            TriggerDefaultEvents(newPlayer);
+            retryAttempts = 0;
+            NewSession();
 
             // setup automated event uploads
-            if (Settings.BackgroundEventUpload && !IsInvoking("Upload")) {
+            if (Settings.BackgroundEventUpload) {
                 InvokeRepeating(
                     "Upload",
                     Settings.BackgroundEventUploadStartDelaySeconds,
@@ -139,11 +151,14 @@ namespace DeltaDNA {
             if (started) {
                 Logger.LogInfo("Stopping DDNA SDK");
 
-                RecordEvent("gameEnded");
+                RecordEvent("gameEnded").Run();
                 CancelInvoke();
                 Upload();
 
                 started = false;
+                newPlayer = false;
+                hasSentDefaultEvents = false;
+                retryAttempts = 0; 
             } else {
                 Logger.LogDebug("SDK not running");
             }
@@ -183,7 +198,7 @@ namespace DeltaDNA {
                 gameEvent as GameEvent,
                 eventTriggers.ContainsKey(gameEvent.Name)
                     ? eventTriggers[gameEvent.Name]
-                    : EventAction.EMPTY_TRIGGERS);
+                    : EventAction.EMPTY_TRIGGERS, actionStore, Settings);
         }
 
         override internal EventAction RecordEvent(string eventName) {
@@ -236,7 +251,7 @@ namespace DeltaDNA {
                     callback(responseJSON);
                 };
 
-                StartCoroutine(Engage.Request(ddna, engageCache, request, handler));
+                StartCoroutine(Engage.Request(ddna, engageCache, request, handler, "config".Equals(request.DecisionPoint) && "internal".Equals(request.Flavour)));
             } catch (Exception ex) {
                 Logger.LogWarning("Engagement request failed: "+ex.Message);
             }
@@ -275,7 +290,7 @@ namespace DeltaDNA {
                     onCompleted(engagement);
                 };
 
-                StartCoroutine(Engage.Request(ddna, engageCache, request, handler));
+                StartCoroutine(Engage.Request(ddna, engageCache, request, handler, "config".Equals(request.DecisionPoint) && "internal".Equals(request.Flavour)));
             } catch (Exception ex) {
                 Logger.LogWarning("Engagement request failed: "+ex.Message);
             }
@@ -324,7 +339,7 @@ namespace DeltaDNA {
             }
 
             if (this.started) {
-                this.RecordEvent(notificationEvent);
+                RecordEvent(notificationEvent).Run();
             } else {
                 this.launchNotificationEvent = notificationEvent;
             }
@@ -358,6 +373,7 @@ namespace DeltaDNA {
         }
 
         override internal void Upload() {
+            
             if (!started) {
                 Logger.LogError("You must first start the SDK via the StartSDK method.");
                 return;
@@ -389,10 +405,17 @@ namespace DeltaDNA {
         override internal void ClearPersistentData() {
             if (eventStore != null) eventStore.ClearAll();
             if (engageCache != null) engageCache.Clear();
+            if (actionStore != null) actionStore.Clear();
             if (ImageMessageStore != null) ImageMessageStore.Clear();
+            if (executionCountManager != null) executionCountManager.Clear();
         }
 
         internal override void ForgetMe() {
+            if (HasStarted) StopSDK();
+        }
+
+        internal override void StopTrackingMe()
+        {
             if (HasStarted) StopSDK();
         }
 
@@ -405,6 +428,23 @@ namespace DeltaDNA {
         #endregion
         #region Client Configuration
 
+        override internal string CrossGameUserID {
+            get { return PlayerPrefs.GetString(DDNA.PF_KEY_CROSS_GAME_USER_ID, null); }
+
+            set {
+                if (String.IsNullOrEmpty(value)) {
+                    Logger.LogWarning("CrossGameUserID cannot be null or empty");
+                } else {
+                    PlayerPrefs.SetString(DDNA.PF_KEY_CROSS_GAME_USER_ID, value);
+
+                    if (started) {
+                        RecordEvent(new GameEvent("ddnaRegisterCrossGameUserID")
+                            .AddParam("ddnaCrossGameUserID", value));
+                    } // else send with gameStarted event
+                }
+            }
+        }
+
         override internal string AndroidRegistrationID {
             get { return androidRegistrationId; }
             set {
@@ -414,7 +454,7 @@ namespace DeltaDNA {
 
                     if (started) {
                         RecordEvent(notificationServicesEvent);
-                    } // else send with clientDevice event
+                    } // else send with gameStarted event
                     androidRegistrationId = value;
                 }
             }
@@ -429,7 +469,7 @@ namespace DeltaDNA {
 
                     if (started) {
                         RecordEvent(notificationServicesEvent);
-                    } // else send with clientDevice event
+                    } // else send with gameStarted event
                     pushNotificationToken = value;
                 }
             }
@@ -518,6 +558,11 @@ namespace DeltaDNA {
 
         private void TriggerDefaultEvents(bool newPlayer)
         {
+            if (launchNotificationEvent != null) {
+                RecordEvent(launchNotificationEvent).Run();
+                launchNotificationEvent = null;
+            }
+            if (hasSentDefaultEvents) return; 
             if (Settings.OnFirstRunSendNewPlayerEvent && newPlayer)
             {
                 Logger.LogDebug("Sending 'newPlayer' event");
@@ -527,7 +572,7 @@ namespace DeltaDNA {
                     newPlayerEvent.AddParam("userCountry", ClientInfo.CountryCode);
                 }
 
-                RecordEvent(newPlayerEvent);
+                RecordEvent(newPlayerEvent).Run();
             }
 
             if (Settings.OnInitSendGameStartedEvent)
@@ -538,6 +583,10 @@ namespace DeltaDNA {
                     .AddParam("clientVersion", this.ClientVersion)
                     .AddParam("userLocale", ClientInfo.Locale);
 
+                if (!string.IsNullOrEmpty(CrossGameUserID)) {
+                    gameStartedEvent.AddParam("ddnaCrossGameUserID", CrossGameUserID);
+                }
+
                 if (!String.IsNullOrEmpty(this.PushNotificationToken)) {
                     gameStartedEvent.AddParam("pushNotificationToken", this.PushNotificationToken);
                 }
@@ -546,7 +595,7 @@ namespace DeltaDNA {
                     gameStartedEvent.AddParam("androidRegistrationID", this.AndroidRegistrationID);
                 }
 
-                RecordEvent(gameStartedEvent);
+                RecordEvent(gameStartedEvent).Run();
             }
 
             if (Settings.OnInitSendClientDeviceEvent)
@@ -566,8 +615,10 @@ namespace DeltaDNA {
                     clientDeviceEvent.AddParam("manufacturer", ClientInfo.Manufacturer);
                 }
 
-                RecordEvent(clientDeviceEvent);
+                RecordEvent(clientDeviceEvent).Run();
             }
+
+            hasSentDefaultEvents = true;
         }
 
         private void HandleSessionConfigurationCallback(JSONObject response) {
@@ -597,7 +648,17 @@ namespace DeltaDNA {
                     (parameters as JSONObject).TryGetValue("triggers", out triggers);
                     if (triggers != null && triggers is List<object>) {
                         eventTriggers = (triggers as List<object>)
-                            .Select((e, i) => new EventTrigger(this, i, e as JSONObject))
+                            .Select((e, i) => {
+                                var t = new EventTrigger(this, i, e as JSONObject, executionCountManager);
+
+                                // save persistent actions
+                                var p = t.GetResponse().GetOrDefault("parameters", new JSONObject());
+                                if (p.GetOrDefault("ddnaIsPersistent", false)) {
+                                    actionStore.Put(t, p);
+                                }
+
+                                return t;
+                            })
                             .GroupBy(e => e.GetEventName())
                             .ToDictionary(e => e.Key, e => {
                                 var list = e.ToList();
@@ -632,7 +693,28 @@ namespace DeltaDNA {
             } else {
                 Logger.LogWarning("Session configuration failed");
                 ddna.NotifyOnSessionConfigurationFailed();
+                HandleSessionConfigurationRetry();
             }
+            TriggerDefaultEvents(newPlayer);
+        }
+
+        private void HandleSessionConfigurationRetry()
+        {
+            if (retryAttempts < Settings.HttpRequestConfigurationMaxRetries)
+            {
+                var currentRetry = retryAttempts + 1;
+                int timeToWait = (int) Math.Pow(2, retryAttempts) *
+                                 Settings.HttpRequestConfigurationRetryBackoffFactorSeconds;
+                Logger.LogWarning("Scheduling retry of configuration request " + currentRetry + " of " + Settings.HttpRequestConfigurationMaxRetries + " in " + timeToWait + " seconds ");
+                StartCoroutine(DoSessionConfigurationRetry(timeToWait));
+                retryAttempts++;
+            }
+        }
+
+        private IEnumerator DoSessionConfigurationRetry(int delay)
+        {
+            yield return new WaitForSeconds(delay);
+            RequestSessionConfiguration();
         }
 
         #endregion
