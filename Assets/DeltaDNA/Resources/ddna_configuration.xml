@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-16"?>
+<configuration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <environment_key_dev>04198741748608036911322379415338</environment_key_dev>
+  <environment_key_live>04198781620075294481686557415338</environment_key_live>
+  <environment_key>0</environment_key>
+  <collect_url>https://collect13875plyfb.deltadna.net/collect/api</collect_url>
+  <engage_url>https://engage13875plyfb.deltadna.net</engage_url>
+  <hash_secret />
+  <client_version />
+  <use_application_version>true</use_application_version>
+</configuration>

@@ -1,8 +1,8 @@
-# ChilliConnect Tutorial
+# Playfab Tutorial
 
-deltaDNA and ChilliConnect work well together to provide a rich set of Analytics, Live-Ops and CRM capabilities.
+deltaDNA and Playfab work well together to provide a rich set of Analytics, Live-Ops and CRM capabilities.
 
-There are multiple communication paths between deltaDNA, ChilliConnect, the game client and respective cloud services to facilitate a wide range of use cases.
+There are multiple communication paths between deltaDNA, Playfab, the game client and respective cloud services to facilitate a wide range of use cases.
 
 
 ![loginEvent](Images/deltaDNA-ChilliConnect.jpg)
@@ -18,19 +18,19 @@ This tutorial contains examples of the following common scenarios.
 * [Out Of Game CRM](#out-of-game-crm)
 
 Supporting project files
-* Project source code on [GitHub](https://github.com/deltaDNA/tutorial-chilliconnect)
-* [deltaDNA](https://www.deltadna.net/demo-account/tutorial-chilliconnect/dev) project containing event schema, reporting, segementation and campaigns. *Please email support@deltaDNA.com if you require access to this game account*
+* Project source code on [GitHub](https://github.com/deltaDNA/tutorial-playfab)
+* [deltaDNA](https://www.deltadna.net/deltadna/playfab-integration-test/dev) project containing event schema, reporting, segementation and campaigns. *Please email support@deltaDNA.com if you require access to this game account*
 * [Playable Demo](https://connect.unity.com/p/deltadna-chilliconnect-tutorial) on Unity Community Hub
 
 
 
 # Common Player Identity
-It makes life a lot easier if deltaDNA and ChilliConnect use the same identity to refer to a player.
+It makes life a lot easier if deltaDNA and PlayFab use the same identity to refer to a player.
 
-The deltaDNA SDK can use any identity you provide, so it makes sense to use the ChilliConnectId to refer to the player. The ChilliConnectId is provided in the response from the ChilliConnect CreatePlayer method. Store it locally in the game client then use it on all subsequent occasions to Start the deltaDNA SDK. It will then be used for all deltaDNA analysis, segmentation and personalisation as well as appearing in the ChilliConnect UI for player inventory and currecny management etc..
+The deltaDNA SDK can use any identity you provide, so it makes sense to use the PlayFab to refer to the player. The ChilliConnectId is provided in the response from the ChilliConnect CreatePlayer method. Store it locally in the game client then use it on all subsequent occasions to Start the deltaDNA SDK. It will then be used for all deltaDNA analysis, segmentation and personalisation as well as appearing in the ChilliConnect UI for player inventory and currecny management etc..
 
 ```csharp
-	DDNA.Instance.StartSDK(chilliConnectId);
+	DDNA.Instance.StartSDK(playFabUserID);
 ```
 
 

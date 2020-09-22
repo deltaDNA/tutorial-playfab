@@ -482,7 +482,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdb6f797e70ab15489250fca2d08b1dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chilliConnectId: 
+  playFabUserID: 
   player: {fileID: 1692671766}
   placementManager: {fileID: 0}
   snakePrefab: {fileID: 1276662142004366, guid: 478f292b2bbb0404c95e73e95c39f7b5,
@@ -2289,7 +2289,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &946417435
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3327,7 +3327,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1692671765
 Transform:
   m_ObjectHideFlags: 0

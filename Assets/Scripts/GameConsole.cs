@@ -15,8 +15,13 @@ public class GameConsole : MonoBehaviour {
     public Text textClientVersion;
     public Text textPlayFabID;
     public bool isConsoleVisible = false;
- 
 
+    private string playfabUserID; 
+
+    public void SetPlayFabUserID(string pfId)
+    {
+        playfabUserID = pfId;
+    }
     // UI Debug console will be used to let player see what the game and SDKs are doing.
     public int numConsoleLines = 12;
     private List<string> console = new List<string>();
@@ -64,20 +69,24 @@ public class GameConsole : MonoBehaviour {
         textUnityVersion.text = "Unity Version : " + Application.unityVersion;
         textClientVersion.text = "Client Version : " + DDNA.Instance.ClientVersion;
 
-        PlayFabClientAPI.GetAccountInfo(new PlayFab.ClientModels.GetAccountInfoRequest(),
-                result => {
-                    if (result.AccountInfo != null && result.AccountInfo.PlayFabId != null)
+       // if (playfabUserID != null)
+       // {
+            PlayFabClientAPI.GetAccountInfo(new PlayFab.ClientModels.GetAccountInfoRequest(),
+                    result =>
                     {
-                        textPlayFabID.text = "PlayFab UserID : " + result.AccountInfo.PlayFabId;
+                        if (result.AccountInfo != null && result.AccountInfo.PlayFabId != null)
+                        {
+                            textPlayFabID.text = "PlayFab UserID : " + result.AccountInfo.PlayFabId;
+                        }
+
+                    },
+                    error =>
+                    {
+                        Debug.Log("Got error getting Account Info:");
+                        Debug.Log(error.GenerateErrorReport());
                     }
-
-                },
-                error => {
-                    Debug.Log("Got error getting Account Info:");
-                    Debug.Log(error.GenerateErrorReport());
-                }
-            );
-
+                );
+       // }
     }
 
 }

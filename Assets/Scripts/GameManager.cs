@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 using PlayFab;
+using PlayFab.ClientModels;
 using DeltaDNA;
 
 public class Level
@@ -21,9 +22,12 @@ public class Level
 public class GameManager : MonoBehaviour
 {
 
-   // public ChilliConnectSdk chilliConnect;
-    public string chilliConnectId = null;
-    private string chilliConnectSecret = null;
+    // public ChilliConnectSdk chilliConnect;
+    // public string chilliConnectId = null;
+    // private string chilliConnectSecret = null;
+
+    public string playFabUserID; 
+
 
 
 
@@ -61,13 +65,14 @@ public class GameManager : MonoBehaviour
     {
         //PlayerPrefs.DeleteAll();
         //Application.Quit();
+        // Some DDNA Settings 
+        DDNA.Instance.SetLoggingLevel(DeltaDNA.Logger.Level.DEBUG);
 
 
-        // A simple debug console in game
-        console.UpdateConsole();
 
-        // Start ChilliConnect SDK, Login, then start deltaDNA SDK
-        StartSDKs();
+        // Start PlayFab SDK, Login, then start deltaDNA SDK
+        PlayFabLogin();
+
 
 
         // These are for pulsing the start button size and alpha 
@@ -106,10 +111,74 @@ public class GameManager : MonoBehaviour
 
         // Login to ChilliConnect and start deltaDNA SDK
         //LogIn(chilliConnectId, chilliConnectSecret);
+   
     }
 
+    private void PlayFabLogin()
+    {
+        // Log the player in to PlayFab
+        if (SystemInfo.deviceType != DeviceType.Handheld)
+        {
+            var request = new LoginWithCustomIDRequest { CustomId = "DDNA Tutorial Playfab", CreateAccount = true };
+            PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
+        }
+        else if (SystemInfo.deviceType == DeviceType.Handheld)
+        {
+            if (Application.platform == RuntimePlatform.Android)
+            {
+                PlayFabClientAPI.LoginWithAndroidDeviceID(new LoginWithAndroidDeviceIDRequest()
+                {
+                    CreateAccount = true,
+                    AndroidDeviceId = SystemInfo.deviceUniqueIdentifier,
+                    TitleId = PlayFabSettings.TitleId,
+                    AndroidDevice = SystemInfo.deviceModel,
+                    OS = SystemInfo.operatingSystem
+                }, OnLoginSuccess, OnLoginFailure);
+            }
+            else if (Application.platform == RuntimePlatform.IPhonePlayer)
+            {
+                PlayFabClientAPI.LoginWithIOSDeviceID(new LoginWithIOSDeviceIDRequest()
+                {
+                    CreateAccount = true,
+                    DeviceId = SystemInfo.deviceUniqueIdentifier,
+                    TitleId = PlayFabSettings.TitleId,
+                    DeviceModel = SystemInfo.deviceModel,
+                    OS = SystemInfo.operatingSystem
+                }, OnLoginSuccess, OnLoginFailure);
+            }
+        }
+    }
 
+    
+    private void OnLoginSuccess(LoginResult result)
+    {
+        Debug.Log("Player Logged in to PlayFab");
+        playFabUserID = result.PlayFabId;
+        Debug.Log("playFabUserID =  " + playFabUserID);
 
+        // Start deltaDNA SDK and use the PlayFab userID
+        DeltaDNAInit(playFabUserID);
+
+        // Retrieve Player Inverntory and Stats
+        player.gameObject.SetActive(true);
+        
+        // A simple debug console in game
+        console.gameObject.SetActive(true);
+        console.SetPlayFabUserID(playFabUserID);
+        console.UpdateConsole();
+
+        // Run deltaDNA playerConfig AB Test
+        
+    }
+
+    private void OnLoginFailure(PlayFabError error)
+    {
+        Debug.LogWarning("This tutorial requires a network connection to connect to PlayFab for some key game logic");
+        Debug.LogError("Before I quit, here's some debug information:");
+        Debug.LogError(error.GenerateErrorReport());
+        Application.Quit();
+        //ShowQuitPanel();
+    }
     /*
     // Start the ChilliConnect SDK, creating a player if one is not stored on the client.
     private void ChilliConnectInit()
@@ -173,59 +242,59 @@ public class GameManager : MonoBehaviour
     }
 
         */
-        /*
-    private void RemoteCampaign(string decisionPoint, string parameters)
-    {
+    /*
+private void RemoteCampaign(string decisionPoint, string parameters)
+{
 
-        var scriptParams = new Dictionary<string, SdkCore.MultiTypeValue>();
-        scriptParams.Add("decisionPoint", decisionPoint);
-        scriptParams.Add("locale", "en_GB");
-        scriptParams.Add("platform", DDNA.Instance.Platform);
-        if (!string.IsNullOrEmpty(parameters)) scriptParams.Add("parameters", parameters);
+    var scriptParams = new Dictionary<string, SdkCore.MultiTypeValue>();
+    scriptParams.Add("decisionPoint", decisionPoint);
+    scriptParams.Add("locale", "en_GB");
+    scriptParams.Add("platform", DDNA.Instance.Platform);
+    if (!string.IsNullOrEmpty(parameters)) scriptParams.Add("parameters", parameters);
 
-        var runScriptRequest = new RunScriptRequestDesc("ENGAGE_DECISION_POINT_CAMPAIGN");
-        runScriptRequest.Params = scriptParams;
+    var runScriptRequest = new RunScriptRequestDesc("ENGAGE_DECISION_POINT_CAMPAIGN");
+    runScriptRequest.Params = scriptParams;
 
-        Debug.Log("Running Engage Campaign Script for decisionPoint : " + decisionPoint);
-        chilliConnect.CloudCode.RunScript(runScriptRequest
-            , (request, response) => {
+    Debug.Log("Running Engage Campaign Script for decisionPoint : " + decisionPoint);
+    chilliConnect.CloudCode.RunScript(runScriptRequest
+        , (request, response) => {
 
-                var engageResponse = response.Output.AsDictionary();
+            var engageResponse = response.Output.AsDictionary();
 
-                if (engageResponse.ContainsKey("parameters"))
+            if (engageResponse.ContainsKey("parameters"))
+            {
+                var p = engageResponse["parameters"].AsDictionary();
+                foreach (var i in p)
                 {
-                    var p = engageResponse["parameters"].AsDictionary();
-                    foreach (var i in p)
-                    {
-                        //Debug.Log("Response Parameter : " + i.Key + " Value : " + i.Value);
+                    //Debug.Log("Response Parameter : " + i.Key + " Value : " + i.Value);
 
-                        if (i.Key == "placementType")
-                            placementManager.type = i.Value.AsString();
+                    if (i.Key == "placementType")
+                        placementManager.type = i.Value.AsString();
 
-                        if (i.Key == "placementPosition")
-                            placementManager.position = i.Value.AsString();
+                    if (i.Key == "placementPosition")
+                        placementManager.position = i.Value.AsString();
 
-                        if (i.Key == "placementFrequency")
-                            placementManager.frequency = i.Value.AsInt();
+                    if (i.Key == "placementFrequency")
+                        placementManager.frequency = i.Value.AsInt();
 
-                        if (i.Key == "placementSessionCap")
-                            placementManager.limit = i.Value.AsInt();
+                    if (i.Key == "placementSessionCap")
+                        placementManager.limit = i.Value.AsInt();
 
-                        if (i.Key == "placementType")
-                            placementManager.type = i.Value.AsString();
+                    if (i.Key == "placementType")
+                        placementManager.type = i.Value.AsString();
 
-                        if (i.Key == "placementPromoID")
-                            placementManager.promoID = i.Value.AsInt();
-                    }
+                    if (i.Key == "placementPromoID")
+                        placementManager.promoID = i.Value.AsInt();
                 }
             }
-            , (request, error) => Debug.LogError(error.ErrorDescription));
-    }
+        }
+        , (request, error) => Debug.LogError(error.ErrorDescription));
+}
 
 */
 
     // Setup a few things and start the deltaDNA SDK
-    private void DeltaDNAInit(string chilliConnectId)
+    private void DeltaDNAInit(string playFabUserID)
     {
         // Configure some things
         DDNA.Instance.SetLoggingLevel(DeltaDNA.Logger.Level.DEBUG);
@@ -248,7 +317,7 @@ public class GameManager : MonoBehaviour
 
 
         // Start the SDK with the chilliConnectId to ensure deltaDNA.userID and ChilliConnectId are the same.
-        DDNA.Instance.StartSDK(chilliConnectId);
+        DDNA.Instance.StartSDK(playFabUserID);
     }
 
 
